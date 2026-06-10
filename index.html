@@ -999,7 +999,30 @@ document.addEventListener('DOMContentLoaded',()=>{
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('new-prog-start-date').value=today;
   document.getElementById('new-prog-end-date').value=today;
-  checkURLParams();
+
+  const params=new URLSearchParams(location.search);
+  const progId=params.get('prog'),date=params.get('date'),slot=params.get('slot');
+
+  if(progId&&date&&slot){
+    // QR 스캔으로 진입 → 로딩 화면 먼저 표시
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    const standby=document.getElementById('page-checkin-standby');
+    standby.classList.add('active');
+    // 로딩 메시지 표시
+    standby.querySelector('.checkin-title').textContent='잠시만요...';
+    standby.querySelector('.checkin-subtitle').textContent='출석 정보를 불러오는 중이에요.';
+
+    fetchPrograms().then(progs=>{
+      localStorage.setItem(SK,JSON.stringify(progs));
+      const p=progs.find(p=>p.id===progId);
+      if(p){
+        goToCheckin(progId,date,slot);
+      } else {
+        standby.querySelector('.checkin-title').textContent='출석 체크';
+        standby.querySelector('.checkin-subtitle').textContent='강의실 화면의 QR 코드를\n스캔해서 출석해주세요.';
+      }
+    });
+  }
 });
 </script>
 </body>
