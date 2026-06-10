@@ -421,12 +421,53 @@ function changePassword(){
 // program {
 //   id, name, org,
 //   days: [ { date, dayNum, amStart, amEnd, pmStart, pmEnd } ],
-//   roster: [ {name, dept} ],
-//   attendance: { "YYYY-MM-DD_am": [{name,dept,checkedAt,method}], "YYYY-MM-DD_pm": [...] }
+//   roster: [ {name, org1, org2, org3} ],
+//   attendance: { "YYYY-MM-DD_am": [{name,org1,org2,org3,checkedAt,method}], ... }
 // }
-const SK='att_v4';
+const GAS_URL='https://script.google.com/macros/s/AKfycbw_8n_J978UL3WaA_O975l5StLjWoFNM5OXE3CTAgO76ZVu58rrZ13a2-DA7CMhprKI/exec';
+const SK='att_v4_cache'; // 로컬 캐시용
+
+// Google Sheets에서 불러오기
+async function fetchPrograms(){
+  try{
+    const res=await fetch(`${GAS_URL}?action=getPrograms`);
+    const json=await res.json();
+    if(json.ok && json.data.length>0){
+      const progs=json.data.map(r=>JSON.parse(r[0]));
+      localStorage.setItem(SK,JSON.stringify(progs));
+      return progs;
+    }
+    return [];
+  }catch(e){
+    console.error('fetch error',e);
+    // 오프라인 시 캐시 사용
+    try{return JSON.parse(localStorage.getItem(SK))||[]}catch{return[]}
+  }
+}
+
+// Google Sheets에 저장
+async function pushPrograms(progs){
+  localStorage.setItem(SK,JSON.stringify(progs)); // 캐시 먼저
+  try{
+    const url=`${GAS_URL}?action=savePrograms&data=${encodeURIComponent(JSON.stringify(progs))}`;
+    await fetch(url);
+  }catch(e){console.error('push error',e)}
+}
+
+// 출석 단건 저장 (빠른 응답용)
+async function pushCheckin(progId,slotKey,record){
+  try{
+    const url=`${GAS_URL}?action=checkin&progId=${progId}&slotKey=${slotKey}&record=${encodeURIComponent(JSON.stringify(record))}`;
+    await fetch(url);
+  }catch(e){console.error('checkin push error',e)}
+}
+
+// 하위 호환 래퍼
 function getPrograms(){try{return JSON.parse(localStorage.getItem(SK))||[]}catch{return[]}}
-function savePrograms(p){localStorage.setItem(SK,JSON.stringify(p))}
+function savePrograms(progs){
+  localStorage.setItem(SK,JSON.stringify(progs));
+  pushPrograms(progs); // 비동기로 Sheets에도 저장
+}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 
 // ═══════════ 라우팅 ═══════════
@@ -434,7 +475,18 @@ function goTo(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pages={home:'page-home',admin:'page-admin','checkin-standby':'page-checkin-standby',checkin:'page-checkin'};
   const el=document.getElementById(pages[name]);
-  if(el){el.classList.add('active');window.scrollTo(0,0);if(name==='admin')renderPrograms()}
+  if(el){
+    el.classList.add('active');
+    window.scrollTo(0,0);
+    if(name==='admin'){
+      document.getElementById('program-list').innerHTML='<div class="empty-state"><div class="icon">⏳</div><p>불러오는 중...</p></div>';
+      fetchPrograms().then(progs=>{
+        localStorage.setItem(SK,JSON.stringify(progs));
+        renderPrograms();
+        populateAttSelect();
+      });
+    }
+  }
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -900,11 +952,10 @@ function doCheckin(p,r,slotKey,label,dayNum){
   const progs=getPrograms();
   const prog=progs.find(pp=>pp.id===p.id);
   if(!prog.attendance[slotKey])prog.attendance[slotKey]=[];
-  prog.attendance[slotKey].push({
-    name:r.name, org1:r.org1||'', org2:r.org2||'', org3:r.org3||'',
-    checkedAt:new Date().toISOString(), method:'qr'
-  });
-  savePrograms(progs);
+  const record={name:r.name,org1:r.org1||'',org2:r.org2||'',org3:r.org3||'',checkedAt:new Date().toISOString(),method:'qr'};
+  prog.attendance[slotKey].push(record);
+  localStorage.setItem(SK,JSON.stringify(progs)); // 캐시 즉시 저장
+  pushCheckin(prog.id,slotKey,record); // Sheets에 비동기 저장
   const orgStr=[r.org1,r.org2,r.org3].filter(Boolean).join(' · ');
   showResult(true,'출석 완료! ✅',`${r.name}님${orgStr?'\n'+orgStr:''}\n${prog.name} ${dayNum}일차 ${label}\n출석이 확인됐습니다.`);
 }
@@ -930,8 +981,16 @@ function checkURLParams(){
   const params=new URLSearchParams(location.search);
   const progId=params.get('prog'),date=params.get('date'),slot=params.get('slot');
   if(progId&&date&&slot){
-    const p=getPrograms().find(p=>p.id===progId);
-    if(p){goToCheckin(progId,date,slot);return}
+    // Sheets에서 최신 데이터 불러온 후 진입
+    fetchPrograms().then(progs=>{
+      localStorage.setItem(SK,JSON.stringify(progs));
+      const p=progs.find(p=>p.id===progId);
+      if(p){goToCheckin(progId,date,slot)}
+      else{
+        // 못 찾으면 대기 화면
+        goTo('checkin-standby');
+      }
+    });
   }
 }
 
