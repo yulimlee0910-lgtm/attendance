@@ -20,8 +20,11 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
 
-  .page{display:none;min-height:100dvh}.page.active{display:block}
-  #page-home.active,#page-checkin.active,#page-checkin-standby.active{display:flex}
+  .page{display:none;min-height:100dvh}
+  .page.active{display:block}
+  #page-home.active{display:flex;align-items:center;justify-content:center}
+  #page-checkin.active{display:flex;align-items:center;justify-content:center}
+  #page-checkin-standby.active{display:flex;align-items:center;justify-content:center}
 
   /* 탑바 */
   .top-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -120,7 +123,7 @@
   .empty-state .icon{font-size:48px;margin-bottom:12px}
 
   /* 홈 */
-  #page-home{background:linear-gradient(135deg,#1e293b 0%,#1a56db 100%);display:flex;align-items:center;justify-content:center;min-height:100dvh}
+  #page-home{background:linear-gradient(135deg,#1e293b 0%,#1a56db 100%)}
   .home-box{text-align:center;color:#fff;max-width:460px;padding:20px}
   .home-box .big-icon{font-size:72px;margin-bottom:16px}
   .home-box h1{font-size:30px;font-weight:800;margin-bottom:8px}
@@ -131,7 +134,7 @@
   .admin-entry:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.2)}
 
   /* 참가자 출석 */
-  #page-checkin{background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px;min-height:100dvh}
+  #page-checkin-standby{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:20px}
   .checkin-card{background:var(--surface);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:40px;width:100%;max-width:400px;text-align:center}
   .checkin-logo{font-size:40px;margin-bottom:8px}
   .checkin-title{font-size:22px;font-weight:800;margin-bottom:4px}
@@ -233,8 +236,7 @@
 
 <!-- 참가자 대기 -->
 <div id="page-checkin-standby" class="page">
-  <div style="min-height:100vh;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px">
-    <div class="checkin-card fade-in">
+  <div class="checkin-card fade-in">
       <div class="checkin-logo">📱</div>
       <div class="checkin-title">출석 체크</div>
       <div class="checkin-subtitle">강의실 화면의 QR 코드를<br>스캔해서 출석해주세요.</div>
@@ -244,13 +246,11 @@
       </div>
       <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="goTo('home')">← 홈으로</button>
     </div>
-  </div>
 </div>
 
 <!-- 참가자 출석 체크 -->
 <div id="page-checkin" class="page">
-  <div style="min-height:100vh;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px">
-    <div class="checkin-card fade-in">
+  <div class="checkin-card fade-in">
       <div class="checkin-logo">✅</div>
       <div class="checkin-title">출석 체크</div>
       <div id="checkin-badge" class="checkin-session-badge"></div>
@@ -280,7 +280,6 @@
         <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:16px" onclick="resetCheckin()">다시 입력</button>
       </div>
     </div>
-  </div>
 </div>
 
 <!-- 어드민 로그인 -->
