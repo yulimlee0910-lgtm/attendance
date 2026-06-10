@@ -20,7 +20,8 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
 
-  .page{display:none;min-height:100vh}.page.active{display:block}
+  .page{display:none;min-height:100dvh}.page.active{display:block}
+  #page-home.active,#page-checkin.active,#page-checkin-standby.active{display:flex}
 
   /* 탑바 */
   .top-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -434,7 +435,7 @@ function goTo(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pages={home:'page-home',admin:'page-admin','checkin-standby':'page-checkin-standby',checkin:'page-checkin'};
   const el=document.getElementById(pages[name]);
-  if(el){el.classList.add('active');if(name==='admin')renderPrograms()}
+  if(el){el.classList.add('active');window.scrollTo(0,0);if(name==='admin')renderPrograms()}
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -805,6 +806,7 @@ function goToCheckin(progId,date,slot){
   document.getElementById('checkin-name').value='';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-checkin').classList.add('active');
+  window.scrollTo(0,0);
 }
 
 // 1단계: 이름 입력 후 명단 조회
