@@ -445,20 +445,26 @@ async function fetchPrograms(){
   }
 }
 
-// Google Sheets에 저장
+// Google Sheets에 저장 (POST)
 async function pushPrograms(progs){
-  localStorage.setItem(SK,JSON.stringify(progs)); // 캐시 먼저
+  localStorage.setItem(SK,JSON.stringify(progs));
   try{
-    const url=`${GAS_URL}?action=savePrograms&data=${encodeURIComponent(JSON.stringify(progs))}`;
-    await fetch(url);
+    await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:`action=savePrograms&data=${encodeURIComponent(JSON.stringify(progs))}`
+    });
   }catch(e){console.error('push error',e)}
 }
 
-// 출석 단건 저장 (빠른 응답용)
+// 출석 단건 저장 (POST)
 async function pushCheckin(progId,slotKey,record){
   try{
-    const url=`${GAS_URL}?action=checkin&progId=${progId}&slotKey=${slotKey}&record=${encodeURIComponent(JSON.stringify(record))}`;
-    await fetch(url);
+    await fetch(GAS_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:`action=checkin&progId=${progId}&slotKey=${slotKey}&record=${encodeURIComponent(JSON.stringify(record))}`
+    });
   }catch(e){console.error('checkin push error',e)}
 }
 
