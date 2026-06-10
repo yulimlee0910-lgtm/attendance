@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전자 출결 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg:#f0f4f8; --surface:#fff; --surface2:#f7f9fc;
+    --primary:#1a56db; --primary-light:#e8f0fe; --primary-dark:#1240a8;
+    --success:#059669; --success-light:#d1fae5;
+    --warning:#d97706; --warning-light:#fef3c7;
+    --danger:#dc2626; --danger-light:#fee2e2;
+    --text:#1e293b; --text-sub:#64748b; --text-muted:#94a3b8;
+    --border:#e2e8f0; --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.04);
+    --shadow-lg:0 8px 32px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+
+  .page{display:none;min-height:100vh}.page.active{display:block}
+
+  /* 탑바 */
+  .top-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .top-bar .logo{font-size:15px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:8px}
+  .top-bar-actions{display:flex;gap:8px;align-items:center}
+  .container{max-width:1060px;margin:0 auto;padding:28px 24px}
+
+  /* 버튼 */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+  .btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+  .btn-outline{background:transparent;color:var(--primary);border:1.5px solid var(--primary)}.btn-outline:hover{background:var(--primary-light)}
+  .btn-ghost{background:transparent;color:var(--text-sub);border:1.5px solid var(--border)}.btn-ghost:hover{background:var(--surface2)}
+  .btn-sm{padding:5px 10px;font-size:12px}.btn-lg{padding:12px 24px;font-size:15px}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* 폼 */
+  .form-group{margin-bottom:14px}
+  .form-label{display:block;font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em}
+  .form-input{width:100%;padding:9px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--surface);transition:border-color .15s;outline:none}
+  .form-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+  textarea.form-input{resize:vertical;min-height:120px}
+
+  /* 카드 */
+  .card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .card-title{font-size:15px;font-weight:700}.card-subtitle{font-size:12px;color:var(--text-sub);margin-top:2px}
+
+  /* 배지 */
+  .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-blue{background:var(--primary-light);color:var(--primary)}
+  .badge-green{background:var(--success-light);color:var(--success)}
+  .badge-red{background:var(--danger-light);color:var(--danger)}
+  .badge-gray{background:#f1f5f9;color:var(--text-sub)}
+
+  /* 탭 */
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:24px}
+  .tab-btn{padding:10px 16px;font-size:13px;font-weight:600;color:var(--text-sub);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+
+  /* 통계 */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:20px}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center}
+  .stat-num{font-size:26px;font-weight:800;color:var(--primary);line-height:1}
+  .stat-label{font-size:11px;color:var(--text-sub);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+
+  /* 모달 */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:100%;max-width:580px;max-height:92vh;overflow-y:auto}
+  .modal-header{padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between}
+  .modal-title{font-size:16px;font-weight:700}
+  .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-sub)}
+  .modal-body{padding:20px 24px}
+  .modal-footer{padding:0 24px 20px;display:flex;gap:8px;justify-content:flex-end}
+
+  /* QR */
+  #qrcode-container{display:flex;justify-content:center;padding:14px 0}
+  .qr-countdown{font-size:36px;font-weight:800;color:var(--primary);font-variant-numeric:tabular-nums;margin:6px 0}
+  .qr-countdown.urgent{color:var(--danger)}
+
+  /* 교육 카드 */
+  .program-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px}
+  .program-card:hover{box-shadow:var(--shadow)}
+  .program-name{font-size:15px;font-weight:700;margin-bottom:3px}
+  .program-meta{font-size:12px;color:var(--text-sub);margin-bottom:14px}
+
+  /* 날짜별 슬롯 */
+  .day-slots{display:flex;flex-direction:column;gap:8px}
+  .day-row{display:grid;grid-template-columns:80px 1fr 1fr;gap:8px;align-items:center;background:var(--surface2);border-radius:var(--radius-sm);padding:10px 14px;border:1px solid var(--border)}
+  .day-label{font-size:12px;font-weight:700;color:var(--text)}
+  .day-slot-box{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .day-slot-info{font-size:12px;color:var(--text-sub)}
+  .day-slot-count{font-size:12px;color:var(--text-sub)}
+  .day-slot-count strong{color:var(--success)}
+
+  /* 진행바 */
+  .progress-bar-wrap{background:#e2e8f0;border-radius:4px;height:5px;flex:1;min-width:40px}
+  .progress-bar{height:5px;border-radius:4px;background:var(--success);transition:width .3s}
+
+  /* 테이블 */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--surface2)}
+
+  /* 배너 */
+  .banner{padding:11px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:14px}
+  .banner-info{background:var(--primary-light);color:#1240a8;border:1px solid #bdd0f5}
+  .banner-warn{background:var(--warning-light);color:#92400e;border:1px solid #fcd34d}
+
+  /* 빈 상태 */
+  .empty-state{text-align:center;padding:48px 24px;color:var(--text-muted)}
+  .empty-state .icon{font-size:48px;margin-bottom:12px}
+
+  /* 홈 */
+  #page-home{background:linear-gradient(135deg,#1e293b 0%,#1a56db 100%);display:flex;align-items:center;justify-content:center;min-height:100dvh}
+  .home-box{text-align:center;color:#fff;max-width:460px;padding:20px}
+  .home-box .big-icon{font-size:72px;margin-bottom:16px}
+  .home-box h1{font-size:30px;font-weight:800;margin-bottom:8px}
+  .home-box p{font-size:15px;opacity:.75;margin-bottom:40px;line-height:1.7}
+  .home-btn{padding:14px 32px;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;border:none;transition:all .2s}
+  .home-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
+  .admin-entry{position:fixed;bottom:20px;right:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.35);font-size:11px;padding:6px 12px;border-radius:20px;cursor:pointer;transition:all .2s}
+  .admin-entry:hover{color:rgba(255,255,255,.8);background:rgba(255,255,255,.2)}
+
+  /* 참가자 출석 */
+  #page-checkin{background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px;min-height:100dvh}
+  .checkin-card{background:var(--surface);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:40px;width:100%;max-width:400px;text-align:center}
+  .checkin-logo{font-size:40px;margin-bottom:8px}
+  .checkin-title{font-size:22px;font-weight:800;margin-bottom:4px}
+  .checkin-subtitle{font-size:13px;color:var(--text-sub);margin-bottom:20px}
+  .checkin-session-badge{background:var(--primary-light);color:var(--primary);font-size:12px;font-weight:700;padding:7px 14px;border-radius:20px;display:inline-block;margin-bottom:22px;line-height:1.5}
+  .checkin-result{padding:24px;border-radius:var(--radius);margin-top:16px;display:none}
+  .checkin-result.success{background:var(--success-light)}
+  .checkin-result.error{background:var(--danger-light)}
+  .checkin-result-icon{font-size:48px;margin-bottom:8px}
+  .checkin-result-title{font-size:18px;font-weight:700;margin-bottom:4px}
+  .checkin-result-msg{font-size:13px;color:var(--text-sub);white-space:pre-line}
+
+  /* 날짜 설정 박스 (교육 추가 모달) */
+  .day-config-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .day-config-row{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;background:var(--surface2)}
+  .day-config-label{font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px}
+  .day-config-times{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .day-config-section{display:flex;flex-direction:column;gap:4px}
+  .day-config-section-label{font-size:11px;font-weight:600;color:var(--text-sub);text-transform:uppercase;letter-spacing:.04em}
+  .day-time-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+
+  .divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .text-sm{font-size:12px}.text-sub{color:var(--text-sub)}
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .fade-in{animation:fadeIn .3s ease}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  .pulse{animation:pulse 1.5s ease infinite}
+
+  @media(max-width:640px){
+    .container{padding:16px}.top-bar{padding:0 16px}.card{padding:16px}
+    .checkin-card{padding:28px 20px}.day-row{grid-template-columns:60px 1fr;grid-template-rows:auto auto}
+    .day-config-times{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- 홈 -->
+<div id="page-home" class="page active">
+  <div class="home-box fade-in">
+    <div class="big-icon">📋</div>
+    <h1>전자 출결 시스템</h1>
+    <p>QR코드로 간편하게<br>출석을 관리하세요.</p>
+    <button class="home-btn" style="background:#fff;color:var(--primary)" onclick="goTo('checkin-standby')">📱 출석 체크하기</button>
+  </div>
+  <button class="admin-entry" onclick="openModal('modal-admin-login')">관리자</button>
+</div>
+
+<!-- 관리자 -->
+<div id="page-admin" class="page">
+  <div class="top-bar">
+    <div class="logo"><span>📋</span> 전자 출결 관리</div>
+    <div class="top-bar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('modal-change-pw')">🔑 비밀번호</button>
+      <button class="btn btn-ghost btn-sm" onclick="goTo('home')">← 홈</button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(event,'tab-programs')">📚 교육 관리</button>
+      <button class="tab-btn" onclick="switchTab(event,'tab-attendance')">👥 출석 현황</button>
+    </div>
+
+    <div id="tab-programs" class="tab-panel active">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">교육 목록</div>
+            <div class="card-subtitle">교육 1개 = 날짜별 오전·오후 출석 세트</div>
+          </div>
+          <button class="btn btn-primary" onclick="openAddProgramModal()">＋ 교육 추가</button>
+        </div>
+        <div id="program-list"><div class="empty-state"><div class="icon">📭</div><p>등록된 교육이 없어요.</p></div></div>
+      </div>
+    </div>
+
+    <div id="tab-attendance" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">출석 현황</div>
+            <div class="card-subtitle">교육 선택 → 날짜×오전/오후 전체 현황</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="att-prog-select" class="form-input" style="width:230px" onchange="loadAttendance()">
+              <option value="">교육 선택</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="exportExcel()">⬇ 엑셀</button>
+          </div>
+        </div>
+        <div id="att-stats" class="stats-grid" style="display:none"></div>
+        <div id="att-table-wrap"><div class="empty-state"><div class="icon">📊</div><p>교육을 선택해주세요.</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 참가자 대기 -->
+<div id="page-checkin-standby" class="page">
+  <div style="min-height:100vh;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="checkin-card fade-in">
+      <div class="checkin-logo">📱</div>
+      <div class="checkin-title">출석 체크</div>
+      <div class="checkin-subtitle">강의실 화면의 QR 코드를<br>스캔해서 출석해주세요.</div>
+      <div style="background:var(--surface2);border-radius:12px;padding:20px;margin:16px 0">
+        <div style="font-size:48px;margin-bottom:8px">🔲</div>
+        <div style="font-size:13px;color:var(--text-sub)">QR 스캔 후 이름과 소속을<br>입력하면 출석 처리됩니다.</div>
+      </div>
+      <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="goTo('home')">← 홈으로</button>
+    </div>
+  </div>
+</div>
+
+<!-- 참가자 출석 체크 -->
+<div id="page-checkin" class="page">
+  <div style="min-height:100vh;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;padding:20px">
+    <div class="checkin-card fade-in">
+      <div class="checkin-logo">✅</div>
+      <div class="checkin-title">출석 체크</div>
+      <div id="checkin-badge" class="checkin-session-badge"></div>
+
+      <!-- 1단계: 이름 입력 -->
+      <div id="checkin-step1">
+        <div class="form-group" style="text-align:left">
+          <label class="form-label">이름</label>
+          <input type="text" id="checkin-name" class="form-input" placeholder="홍길동" autocomplete="off"
+            onkeydown="if(event.key==='Enter')lookupName()">
+        </div>
+        <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px" onclick="lookupName()">다음</button>
+      </div>
+
+      <!-- 2단계: 동명이인 선택 -->
+      <div id="checkin-step2" style="display:none">
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:12px">같은 이름이 여러 명 있어요.<br>본인을 선택해주세요.</div>
+        <div id="checkin-duplicate-list" style="display:flex;flex-direction:column;gap:8px;text-align:left"></div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:12px" onclick="backToStep1()">← 이름 다시 입력</button>
+      </div>
+
+      <!-- 결과 -->
+      <div id="checkin-result" class="checkin-result">
+        <div class="checkin-result-icon" id="result-icon"></div>
+        <div class="checkin-result-title" id="result-title"></div>
+        <div class="checkin-result-msg" id="result-msg"></div>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:16px" onclick="resetCheckin()">다시 입력</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 어드민 로그인 -->
+<div id="modal-admin-login" class="modal-overlay">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header"><div class="modal-title">⚙️ 관리자 로그인</div><button class="modal-close" onclick="closeModal('modal-admin-login')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">비밀번호</label>
+        <input type="password" id="admin-pw-input" class="form-input" onkeydown="if(event.key==='Enter')checkAdminPW()">
+      </div>
+      <div id="admin-pw-error" style="color:var(--danger);font-size:12px;display:none">❌ 비밀번호가 틀렸습니다.</div>
+      <div class="banner banner-info" style="margin-top:12px;margin-bottom:0;font-size:12px">초기 비밀번호: <strong>1234</strong></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-admin-login')">취소</button>
+      <button class="btn btn-primary" onclick="checkAdminPW()">로그인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 변경 -->
+<div id="modal-change-pw" class="modal-overlay">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header"><div class="modal-title">🔑 비밀번호 변경</div><button class="modal-close" onclick="closeModal('modal-change-pw')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">현재 비밀번호</label><input type="password" id="pw-current" class="form-input"></div>
+      <div class="form-group"><label class="form-label">새 비밀번호</label><input type="password" id="pw-new" class="form-input"></div>
+      <div class="form-group"><label class="form-label">확인</label><input type="password" id="pw-confirm" class="form-input"></div>
+      <div id="pw-change-error" style="color:var(--danger);font-size:12px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-change-pw')">취소</button>
+      <button class="btn btn-primary" onclick="changePassword()">변경</button>
+    </div>
+  </div>
+</div>
+
+<!-- 교육 추가 모달 -->
+<div id="modal-add-program" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">새 교육 추가</div><button class="modal-close" onclick="closeModal('modal-add-program')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">교육명 *</label>
+        <input type="text" id="new-prog-name" class="form-input" placeholder="예: 미래전환 아카데미 AX 1기">
+      </div>
+      <div class="form-group"><label class="form-label">주관 기관</label>
+        <input type="text" id="new-prog-org" class="form-input" placeholder="예: KMAC / KOMIPO HRD팀">
+      </div>
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">시작일 *</label>
+          <input type="date" id="new-prog-start-date" class="form-input" onchange="buildDayConfigs()">
+        </div>
+        <div class="form-group"><label class="form-label">종료일 *</label>
+          <input type="date" id="new-prog-end-date" class="form-input" onchange="buildDayConfigs()">
+        </div>
+      </div>
+
+      <div id="day-configs-wrap" style="display:none">
+        <hr class="divider">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">⏰ 날짜별 출석 시간 설정</div>
+        <div id="day-configs-list" class="day-config-list"></div>
+      </div>
+
+      <hr class="divider">
+      <div class="form-group">
+        <label class="form-label">참가자 명단 * (이름,1차소속,2차소속,3차소속 — 한 줄씩)</label>
+        <textarea id="new-prog-roster" class="form-input" placeholder="홍길동,보령발전본부,제2발전소,(2발)발전운영2실&#10;김철수,서울본사,기획조정실&#10;이영희,중부발전"></textarea>
+        <div class="text-sm text-sub" style="margin-top:4px">소속은 1~3차까지 자유롭게. 2·3차는 생략 가능. 이름만으로 출석 처리됩니다.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-program')">취소</button>
+      <button class="btn btn-primary" onclick="addProgram()">교육 만들기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 명단 편집 -->
+<div id="modal-edit-roster" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">👥 참가자 명단 편집</div><button class="modal-close" onclick="closeModal('modal-edit-roster')">✕</button></div>
+    <div class="modal-body">
+      <div class="banner banner-info">💡 이름,1차소속,2차소속,3차소속 — 한 줄씩. 소속은 참고용이며 2·3차는 생략 가능합니다.</div>
+      <div class="form-group"><label class="form-label">명단</label>
+        <textarea id="edit-roster-text" class="form-input" style="min-height:220px"></textarea>
+      </div>
+      <div id="edit-roster-count" class="text-sm text-sub"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-roster')">취소</button>
+      <button class="btn btn-primary" onclick="saveRoster()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR 표시 -->
+<div id="modal-qr" class="modal-overlay">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div class="modal-header" style="justify-content:flex-end;padding-bottom:8px">
+      <button class="modal-close" onclick="closeModal('modal-qr');stopQRTimer()">✕</button>
+    </div>
+    <div class="modal-body" style="padding-top:0">
+      <div style="font-size:16px;font-weight:700" id="qr-title"></div>
+      <div style="font-size:12px;color:var(--text-sub);margin-top:2px" id="qr-time"></div>
+      <div id="qrcode-container"></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-sub);margin-bottom:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em">출석 마감까지</div>
+        <div id="qr-countdown" class="qr-countdown">--:--</div>
+      </div>
+      <div id="qr-count" style="font-size:13px;color:var(--text-sub)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════ 비밀번호 ═══════════
+const PW_KEY='att_pw_v4';
+function getAdminPW(){return localStorage.getItem(PW_KEY)||'1234'}
+function checkAdminPW(){
+  const v=document.getElementById('admin-pw-input').value;
+  const e=document.getElementById('admin-pw-error');
+  if(v===getAdminPW()){e.style.display='none';document.getElementById('admin-pw-input').value='';closeModal('modal-admin-login');goTo('admin')}
+  else{e.style.display='block';document.getElementById('admin-pw-input').value='';document.getElementById('admin-pw-input').focus()}
+}
+function changePassword(){
+  const cur=document.getElementById('pw-current').value;
+  const nw=document.getElementById('pw-new').value;
+  const cf=document.getElementById('pw-confirm').value;
+  const e=document.getElementById('pw-change-error');
+  if(cur!==getAdminPW()){e.textContent='❌ 현재 비밀번호 오류';e.style.display='block';return}
+  if(nw.length<4){e.textContent='❌ 4자 이상 입력';e.style.display='block';return}
+  if(nw!==cf){e.textContent='❌ 비밀번호 불일치';e.style.display='block';return}
+  localStorage.setItem(PW_KEY,nw);
+  ['pw-current','pw-new','pw-confirm'].forEach(id=>document.getElementById(id).value='');
+  e.style.display='none';closeModal('modal-change-pw');alert('✅ 비밀번호 변경 완료');
+}
+
+// ═══════════ 데이터 구조 ═══════════
+// program {
+//   id, name, org,
+//   days: [ { date, dayNum, amStart, amEnd, pmStart, pmEnd } ],
+//   roster: [ {name, dept} ],
+//   attendance: { "YYYY-MM-DD_am": [{name,dept,checkedAt,method}], "YYYY-MM-DD_pm": [...] }
+// }
+const SK='att_v4';
+function getPrograms(){try{return JSON.parse(localStorage.getItem(SK))||[]}catch{return[]}}
+function savePrograms(p){localStorage.setItem(SK,JSON.stringify(p))}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+// ═══════════ 라우팅 ═══════════
+function goTo(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pages={home:'page-home',admin:'page-admin','checkin-standby':'page-checkin-standby',checkin:'page-checkin'};
+  const el=document.getElementById(pages[name]);
+  if(el){el.classList.add('active');if(name==='admin')renderPrograms()}
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function switchTab(e,tabId){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  e.target.classList.add('active');
+  if(tabId==='tab-attendance')populateAttSelect();
+}
+
+// ═══════════ 날짜 유틸 ═══════════
+function dateRange(start,end){
+  const dates=[];
+  const cur=new Date(start);
+  const last=new Date(end);
+  while(cur<=last){dates.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1)}
+  return dates;
+}
+function fmtDate(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  return `${d.getMonth()+1}/${d.getDate()}(${['일','월','화','수','목','금','토'][d.getDay()]})`;
+}
+
+// ═══════════ 교육 추가 모달 ═══════════
+function openAddProgramModal(){
+  clearProgramForm();
+  openModal('modal-add-program');
+}
+function clearProgramForm(){
+  ['new-prog-name','new-prog-org','new-prog-roster'].forEach(id=>document.getElementById(id).value='');
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('new-prog-start-date').value=today;
+  document.getElementById('new-prog-end-date').value=today;
+  buildDayConfigs();
+}
+
+function buildDayConfigs(){
+  const s=document.getElementById('new-prog-start-date').value;
+  const e=document.getElementById('new-prog-end-date').value;
+  const wrap=document.getElementById('day-configs-wrap');
+  const list=document.getElementById('day-configs-list');
+  if(!s||!e||s>e){wrap.style.display='none';return}
+  const dates=dateRange(s,e);
+  if(dates.length>14){alert('최대 14일까지 설정 가능합니다.');return}
+  wrap.style.display='block';
+  list.innerHTML=dates.map((date,i)=>`
+    <div class="day-config-row">
+      <div class="day-config-label">${i+1}일차 · ${fmtDate(date)}</div>
+      <div class="day-config-times">
+        <div class="day-config-section">
+          <div class="day-config-section-label">🌅 오전</div>
+          <div class="day-time-row">
+            <div><label class="form-label" style="font-size:10px">시작</label>
+              <input type="time" class="form-input" id="dc-${date}-am-s" value="09:00"></div>
+            <div><label class="form-label" style="font-size:10px">마감</label>
+              <input type="time" class="form-input" id="dc-${date}-am-e" value="09:20"></div>
+          </div>
+        </div>
+        <div class="day-config-section">
+          <div class="day-config-section-label">🌇 오후</div>
+          <div class="day-time-row">
+            <div><label class="form-label" style="font-size:10px">시작</label>
+              <input type="time" class="form-input" id="dc-${date}-pm-s" value="13:00"></div>
+            <div><label class="form-label" style="font-size:10px">마감</label>
+              <input type="time" class="form-input" id="dc-${date}-pm-e" value="13:20"></div>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function addProgram(){
+  const name=document.getElementById('new-prog-name').value.trim();
+  const org=document.getElementById('new-prog-org').value.trim();
+  const startDate=document.getElementById('new-prog-start-date').value;
+  const endDate=document.getElementById('new-prog-end-date').value;
+  const raw=document.getElementById('new-prog-roster').value.trim();
+  if(!name||!startDate||!endDate){alert('교육명과 날짜를 입력해주세요.');return}
+  if(startDate>endDate){alert('종료일이 시작일보다 빠릅니다.');return}
+
+  const dates=dateRange(startDate,endDate);
+  const days=dates.map((date,i)=>({
+    date, dayNum:i+1,
+    amStart:document.getElementById(`dc-${date}-am-s`).value,
+    amEnd:  document.getElementById(`dc-${date}-am-e`).value,
+    pmStart:document.getElementById(`dc-${date}-pm-s`).value,
+    pmEnd:  document.getElementById(`dc-${date}-pm-e`).value,
+  }));
+
+  // attendance 키 초기화
+  const attendance={};
+  days.forEach(d=>{attendance[`${d.date}_am`]=[];attendance[`${d.date}_pm`]=[]});
+
+  const prog={id:genId(),name,org,days,roster:parseRoster(raw),attendance,createdAt:new Date().toISOString()};
+  const progs=getPrograms();
+  progs.push(prog);
+  savePrograms(progs);
+  closeModal('modal-add-program');
+  renderPrograms();
+}
+
+function parseRoster(raw){
+  return raw.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split(',').map(s=>s.trim());
+    return{name:p[0]||'', org1:p[1]||'', org2:p[2]||'', org3:p[3]||''}
+  }).filter(r=>r.name);
+}
+
+// ═══════════ 교육 목록 렌더링 ═══════════
+function renderPrograms(){
+  const progs=getPrograms();
+  const el=document.getElementById('program-list');
+  if(!progs.length){el.innerHTML='<div class="empty-state"><div class="icon">📭</div><p>등록된 교육이 없어요.</p></div>';return}
+
+  el.innerHTML=progs.map(p=>{
+    const total=p.roster.length;
+    const dayRows=p.days.map(d=>{
+      const amC=(p.attendance[`${d.date}_am`]||[]).length;
+      const pmC=(p.attendance[`${d.date}_pm`]||[]).length;
+      const amPct=total?Math.round(amC/total*100):0;
+      const pmPct=total?Math.round(pmC/total*100):0;
+      const today=new Date().toISOString().slice(0,10);
+      const isToday=d.date===today;
+      return `
+        <div class="day-row" style="${isToday?'border-color:var(--primary);background:var(--primary-light)':''}">
+          <div class="day-label">${d.dayNum}일차<br><span style="font-weight:400;color:var(--text-sub);font-size:11px">${fmtDate(d.date)}</span></div>
+          <div class="day-slot-box">
+            <div style="flex:1">
+              <div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:3px">🌅 오전 ${d.amStart}–${d.amEnd}</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div class="progress-bar-wrap"><div class="progress-bar" style="width:${amPct}%"></div></div>
+                <span style="font-size:12px;color:var(--text-sub);white-space:nowrap"><strong style="color:var(--success)">${amC}</strong>/${total}</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="showQR('${p.id}','${d.date}','am')">QR</button>
+          </div>
+          <div class="day-slot-box">
+            <div style="flex:1">
+              <div style="font-size:11px;font-weight:600;color:var(--text-sub);margin-bottom:3px">🌇 오후 ${d.pmStart}–${d.pmEnd}</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pmPct}%"></div></div>
+                <span style="font-size:12px;color:var(--text-sub);white-space:nowrap"><strong style="color:var(--success)">${pmC}</strong>/${total}</span>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="showQR('${p.id}','${d.date}','pm')">QR</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="program-card">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
+          <div>
+            <div class="program-name">${p.name}</div>
+            <div class="program-meta">${p.days[0].date} ~ ${p.days[p.days.length-1].date} (${p.days.length}일) · ${p.org||'기관 미입력'} · 등록 ${total}명</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-ghost btn-sm" onclick="openRosterModal('${p.id}')">👥 명단</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteProgram('${p.id}')">🗑</button>
+          </div>
+        </div>
+        <div class="day-slots">${dayRows}</div>
+      </div>`;
+  }).join('');
+}
+
+function deleteProgram(id){
+  if(!confirm('교육을 삭제할까요? 출석 기록도 함께 삭제됩니다.'))return;
+  savePrograms(getPrograms().filter(p=>p.id!==id));
+  renderPrograms();
+}
+
+// ═══════════ 명단 편집 ═══════════
+let editingProgId=null;
+function openRosterModal(progId){
+  editingProgId=progId;
+  const p=getPrograms().find(p=>p.id===progId);
+  document.getElementById('edit-roster-text').value=p.roster.map(r=>[r.name,r.org1,r.org2,r.org3].filter(Boolean).join(',')).join('\n');
+  document.getElementById('edit-roster-count').textContent=`현재 ${p.roster.length}명 등록됨`;
+  openModal('modal-edit-roster');
+}
+function saveRoster(){
+  const progs=getPrograms();
+  const p=progs.find(p=>p.id===editingProgId);
+  if(!p)return;
+  p.roster=parseRoster(document.getElementById('edit-roster-text').value.trim());
+  savePrograms(progs);
+  closeModal('modal-edit-roster');
+  renderPrograms();
+}
+
+// ═══════════ QR 표시 ═══════════
+let qrTimer=null;
+function showQR(progId,date,slot){
+  const p=getPrograms().find(p=>p.id===progId);
+  const d=p.days.find(d=>d.date===date);
+  const label=slot==='am'?'오전':'오후';
+  const start=slot==='am'?d.amStart:d.pmStart;
+  const end=slot==='am'?d.amEnd:d.pmEnd;
+
+  document.getElementById('qr-title').textContent=`${p.name} · ${d.dayNum}일차 ${label}`;
+  document.getElementById('qr-time').textContent=`${fmtDate(date)} · ${start} ~ ${end}`;
+
+  const base=location.origin+location.pathname.replace(/\/+$/,'');
+  const url=`${base}?prog=${progId}&date=${date}&slot=${slot}`;
+  const c=document.getElementById('qrcode-container');
+  c.innerHTML='';
+  new QRCode(c,{text:url,width:210,height:210,colorDark:'#1e293b',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+
+  tickQR(p,date,slot);
+  qrTimer=setInterval(()=>{const fresh=getPrograms().find(p=>p.id===progId);tickQR(fresh,date,slot)},1000);
+  openModal('modal-qr');
+}
+function tickQR(p,date,slot){
+  const d=p.days.find(d=>d.date===date);
+  const start=slot==='am'?d.amStart:d.pmStart;
+  const end=slot==='am'?d.amEnd:d.pmEnd;
+  const att=p.attendance[`${date}_${slot}`]||[];
+  const now=new Date();
+  const today=now.toISOString().slice(0,10);
+  const el=document.getElementById('qr-countdown');
+  if(date!==today){el.textContent='오늘 아님';el.className='qr-countdown'}
+  else{
+    const sMs=new Date(today+'T'+start+':00').getTime();
+    const eMs=new Date(today+'T'+end+':00').getTime();
+    const nMs=now.getTime();
+    if(nMs<sMs){el.textContent=`시작까지 ${fmt(Math.floor((sMs-nMs)/1000))}`;el.className='qr-countdown'}
+    else if(nMs<=eMs){const sec=Math.floor((eMs-nMs)/1000);el.textContent=fmt(sec);el.className=sec<60?'qr-countdown urgent':'qr-countdown'}
+    else{el.textContent='종료';el.className='qr-countdown'}
+  }
+  document.getElementById('qr-count').textContent=`현재 ${att.length}명 출석`;
+}
+function stopQRTimer(){if(qrTimer){clearInterval(qrTimer);qrTimer=null}}
+function fmt(s){return`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
+
+// ═══════════ 출석 현황 ═══════════
+function populateAttSelect(){
+  const sel=document.getElementById('att-prog-select');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">교육 선택</option>'+
+    getPrograms().map(p=>`<option value="${p.id}">${p.name} (${p.days[0].date}~${p.days[p.days.length-1].date})</option>`).join('');
+  if(cur)sel.value=cur;
+  loadAttendance();
+}
+
+function loadAttendance(){
+  const progId=document.getElementById('att-prog-select').value;
+  if(!progId){
+    document.getElementById('att-table-wrap').innerHTML='<div class="empty-state"><div class="icon">📊</div><p>교육을 선택해주세요.</p></div>';
+    document.getElementById('att-stats').style.display='none';return;
+  }
+  const p=getPrograms().find(p=>p.id===progId);
+  if(!p)return;
+
+  const total=p.roster.length;
+  const slots=[];
+  p.days.forEach(d=>['am','pm'].forEach(s=>slots.push({date:d.date,dayNum:d.dayNum,slot:s,key:`${d.date}_${s}`})));
+
+  // 통계: 전체 슬롯 중 출석률
+  const totalSlots=slots.length;
+  const doneSlots=slots.reduce((acc,s)=>acc+(p.attendance[s.key]||[]).length,0);
+  const maxPossible=total*totalSlots;
+  const overallPct=maxPossible?Math.round(doneSlots/maxPossible*100):0;
+
+  // 전일 출석 (모든 슬롯 출석) - 이름 기준
+  const fullAtt=p.roster.filter(r=>{
+    return slots.every(s=>(p.attendance[s.key]||[]).some(a=>a.name===r.name));
+  }).length;
+
+  document.getElementById('att-stats').style.display='grid';
+  document.getElementById('att-stats').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">등록 인원</div></div>
+    <div class="stat-card"><div class="stat-num">${p.days.length}</div><div class="stat-label">교육 일수</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--success)">${fullAtt}</div><div class="stat-label">전일정 출석</div></div>
+    <div class="stat-card"><div class="stat-num">${overallPct}%</div><div class="stat-label">전체 출석률</div></div>
+  `;
+
+  const thCols=slots.map(s=>`<th>${s.dayNum}일차<br>${s.slot==='am'?'오전':'오후'}</th>`).join('');
+
+  let rows='';
+  p.roster.forEach((r,i)=>{
+    const orgStr=[r.org1,r.org2,r.org3].filter(Boolean).join(' / ');
+    const attCols=slots.map(s=>{
+      const key=s.key;
+      const a=(p.attendance[key]||[]).find(a=>a.name===r.name);
+      if(a){
+        const t=new Date(a.checkedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+        return `<td><span class="badge badge-green" style="font-size:10px">✓ ${t}</span></td>`;
+      }else{
+        return `<td><button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px" onclick="manualCheckin('${p.id}','${s.key}','${r.name}')">수동</button></td>`;
+      }
+    }).join('');
+    rows+=`<tr><td>${i+1}</td><td><strong>${r.name}</strong></td><td style="font-size:12px;color:var(--text-sub)">${orgStr||'-'}</td>${attCols}</tr>`;
+  });
+
+  document.getElementById('att-table-wrap').innerHTML=`
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>이름</th><th>소속/부서</th>${thCols}</tr></thead>
+      <tbody>${rows||'<tr><td colspan="99" style="text-align:center;color:var(--text-muted);padding:32px">명단이 없습니다.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function manualCheckin(progId,slotKey,name){
+  const label=slotKey.includes('_am')?'오전':'오후';
+  if(!confirm(`${name} ${label} 수동 출석 처리할까요?`))return;
+  const progs=getPrograms();
+  const p=progs.find(p=>p.id===progId);
+  if(!p.attendance[slotKey])p.attendance[slotKey]=[];
+  if(p.attendance[slotKey].find(a=>a.name===name)){alert('이미 출석됐습니다.');return}
+  // 명단에서 소속 찾아서 같이 저장
+  const r=p.roster.find(r=>r.name===name)||{org1:'',org2:'',org3:''};
+  p.attendance[slotKey].push({name,org1:r.org1,org2:r.org2,org3:r.org3,checkedAt:new Date().toISOString(),method:'manual'});
+  savePrograms(progs);
+  loadAttendance();
+  renderPrograms();
+}
+
+// ═══════════ 엑셀 다운로드 ═══════════
+function exportExcel(){
+  const progId=document.getElementById('att-prog-select').value;
+  if(!progId){alert('교육을 선택해주세요.');return}
+  const p=getPrograms().find(p=>p.id===progId);
+
+  const slots=[];
+  p.days.forEach(d=>['am','pm'].forEach(s=>slots.push({date:d.date,dayNum:d.dayNum,slot:s,key:`${d.date}_${s}`})));
+
+  const header=['순번','이름','1차소속','2차소속','3차소속',
+    ...slots.map(s=>`${s.dayNum}일차_${s.slot==='am'?'오전':'오후'}`),
+    ...slots.map(s=>`${s.dayNum}일차_${s.slot==='am'?'오전':'오후'}_시간`)];
+  const rows=[header];
+
+  p.roster.forEach((r,i)=>{
+    const attVals=slots.map(s=>{
+      const a=(p.attendance[s.key]||[]).find(a=>a.name===r.name);
+      return a?'출석':'미출석';
+    });
+    const timVals=slots.map(s=>{
+      const a=(p.attendance[s.key]||[]).find(a=>a.name===r.name);
+      return a?new Date(a.checkedAt).toLocaleString('ko-KR'):'';
+    });
+    rows.push([i+1,r.name,r.org1||'',r.org2||'',r.org3||'',...attVals,...timVals]);
+  });
+
+  const BOM='\uFEFF';
+  const csv=BOM+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`출석부_${p.name}_${p.days[0].date}.csv`;
+  a.click();
+}
+
+// ═══════════ 참가자 출석 체크 ═══════════
+let currentProgId=null,currentDate=null,currentSlot=null;
+
+function goToCheckin(progId,date,slot){
+  currentProgId=progId;currentDate=date;currentSlot=slot;
+  const p=getPrograms().find(p=>p.id===progId);
+  if(!p)return;
+  const d=p.days.find(d=>d.date===date);
+  const label=slot==='am'?'오전':'오후';
+  const start=slot==='am'?d.amStart:d.pmStart;
+  const end=slot==='am'?d.amEnd:d.pmEnd;
+  document.getElementById('checkin-badge').textContent=`${p.name}\n${d.dayNum}일차 ${label} (${start}~${end})`;
+  document.getElementById('checkin-step1').style.display='block';
+  document.getElementById('checkin-step2').style.display='none';
+  document.getElementById('checkin-result').style.display='none';
+  document.getElementById('checkin-name').value='';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-checkin').classList.add('active');
+}
+
+// 1단계: 이름 입력 후 명단 조회
+function lookupName(){
+  const name=document.getElementById('checkin-name').value.trim();
+  if(!name){alert('이름을 입력해주세요.');return}
+
+  const progs=getPrograms();
+  const p=progs.find(p=>p.id===currentProgId);
+  if(!p){showResult(false,'오류','교육 정보를 찾을 수 없습니다.');return}
+
+  // 시간 체크 먼저
+  const d=p.days.find(d=>d.date===currentDate);
+  const slot=currentSlot;
+  const start=slot==='am'?d.amStart:d.pmStart;
+  const end=slot==='am'?d.amEnd:d.pmEnd;
+  const label=slot==='am'?'오전':'오후';
+  const now=new Date();
+  const today=now.toISOString().slice(0,10);
+  if(currentDate!==today){showResult(false,'출석 불가',`교육 날짜(${currentDate})가 오늘이 아닙니다.`);return}
+  const sMs=new Date(today+'T'+start+':00').getTime();
+  const eMs=new Date(today+'T'+end+':00').getTime();
+  if(now<sMs){showResult(false,'아직 출석 시간이 아닙니다',`${label} 출석 시작: ${start}`);return}
+  if(now>eMs){showResult(false,'출석 시간이 종료됐습니다',`${label} 출석 마감: ${end}`);return}
+
+  // 이름으로 명단 조회
+  const matches=p.roster.filter(r=>r.name===name);
+  if(matches.length===0){
+    showResult(false,'명단에 없는 참가자입니다',`"${name}"을(를) 찾을 수 없어요.\n이름을 다시 확인해주세요.`);return;
+  }
+
+  // 이미 출석한 경우 체크
+  const slotKey=`${currentDate}_${slot}`;
+  const alreadyDone=matches.filter(r=>(p.attendance[slotKey]||[]).some(a=>a.name===r.name));
+
+  if(matches.length===1){
+    // 단일 매칭
+    if(alreadyDone.length>0){
+      showResult(false,'이미 출석했습니다',`${name}님 ${label} 출석 완료`);return;
+    }
+    doCheckin(p,matches[0],slotKey,label,d.dayNum);
+  } else {
+    // 동명이인 → 소속 선택 화면
+    showDuplicateSelect(matches,slotKey,label,d.dayNum,p);
+  }
+}
+
+// 동명이인 선택 화면
+function showDuplicateSelect(matches,slotKey,label,dayNum,p){
+  document.getElementById('checkin-step1').style.display='none';
+  document.getElementById('checkin-step2').style.display='block';
+
+  const list=document.getElementById('checkin-duplicate-list');
+  list.innerHTML=matches.map((r,i)=>{
+    const orgStr=[r.org1,r.org2,r.org3].filter(Boolean).join(' · ')||'소속 미등록';
+    const alreadyDone=(p.attendance[slotKey]||[]).some(a=>a.name===r.name&&a.org1===r.org1);
+    if(alreadyDone){
+      return `<div style="padding:12px 14px;border-radius:var(--radius-sm);background:#f1f5f9;border:1px solid var(--border);opacity:.6">
+        <div style="font-weight:700">${r.name} <span class="badge badge-green" style="font-size:10px">이미 출석</span></div>
+        <div style="font-size:12px;color:var(--text-sub);margin-top:2px">${orgStr}</div>
+      </div>`;
+    }
+    return `<button onclick="selectDuplicate(${i})" style="width:100%;text-align:left;padding:12px 14px;border-radius:var(--radius-sm);background:var(--surface);border:1.5px solid var(--border);cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--primary-light)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)'">
+      <div style="font-weight:700;font-size:14px">${r.name}</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-top:2px">${orgStr}</div>
+    </button>`;
+  }).join('');
+
+  // 전역에 현재 matches 저장
+  window._dupMatches=matches;
+  window._dupSlotKey=slotKey;
+  window._dupLabel=label;
+  window._dupDayNum=dayNum;
+  window._dupProg=p;
+}
+
+function selectDuplicate(idx){
+  const r=window._dupMatches[idx];
+  const p=window._dupProg;
+  doCheckin(p,r,window._dupSlotKey,window._dupLabel,window._dupDayNum);
+}
+
+function backToStep1(){
+  document.getElementById('checkin-step1').style.display='block';
+  document.getElementById('checkin-step2').style.display='none';
+}
+
+// 실제 출석 저장
+function doCheckin(p,r,slotKey,label,dayNum){
+  const progs=getPrograms();
+  const prog=progs.find(pp=>pp.id===p.id);
+  if(!prog.attendance[slotKey])prog.attendance[slotKey]=[];
+  prog.attendance[slotKey].push({
+    name:r.name, org1:r.org1||'', org2:r.org2||'', org3:r.org3||'',
+    checkedAt:new Date().toISOString(), method:'qr'
+  });
+  savePrograms(progs);
+  const orgStr=[r.org1,r.org2,r.org3].filter(Boolean).join(' · ');
+  showResult(true,'출석 완료! ✅',`${r.name}님${orgStr?'\n'+orgStr:''}\n${prog.name} ${dayNum}일차 ${label}\n출석이 확인됐습니다.`);
+}
+
+function showResult(ok,title,msg){
+  document.getElementById('checkin-step1').style.display='none';
+  document.getElementById('checkin-step2').style.display='none';
+  const res=document.getElementById('checkin-result');
+  res.style.display='block';res.className='checkin-result '+(ok?'success':'error');
+  document.getElementById('result-icon').textContent=ok?'✅':'❌';
+  document.getElementById('result-title').textContent=title;
+  document.getElementById('result-msg').textContent=msg;
+}
+function resetCheckin(){
+  document.getElementById('checkin-step1').style.display='block';
+  document.getElementById('checkin-step2').style.display='none';
+  document.getElementById('checkin-result').style.display='none';
+  document.getElementById('checkin-name').value='';
+}
+
+// ═══════════ URL 파라미터 ═══════════
+function checkURLParams(){
+  const params=new URLSearchParams(location.search);
+  const progId=params.get('prog'),date=params.get('date'),slot=params.get('slot');
+  if(progId&&date&&slot){
+    const p=getPrograms().find(p=>p.id===progId);
+    if(p){goToCheckin(progId,date,slot);return}
+  }
+}
+
+// ═══════════ 초기화 ═══════════
+document.addEventListener('DOMContentLoaded',()=>{
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('new-prog-start-date').value=today;
+  document.getElementById('new-prog-end-date').value=today;
+  checkURLParams();
+});
+</script>
+</body>
+</html>
