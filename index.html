@@ -327,13 +327,36 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_8n_J978UL3WaA_O975l5
 const SK = 'att_v4';
 const PW_KEY = 'att_pw_v4';
 
-// ═══════════ GAS 통신 — 전부 GET (CORS preflight 없음) ═══════════
-async function gasGet(params) {
-  const qs = Object.entries(params)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join('&');
-  const res = await fetch(`${GAS_URL}?${qs}`, { redirect: 'follow' });
-  return res.json();
+// ═══════════ GAS 통신 — JSONP (CORS 완전 우회) ═══════════
+function gasGet(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const timeout = setTimeout(() => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      reject(new Error('timeout'));
+    }, 15000);
+
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve(data);
+    };
+
+    const qs = Object.entries({ ...params, callback: cbName })
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const script = document.createElement('script');
+    script.src = `${GAS_URL}?${qs}`;
+    script.onerror = () => {
+      clearTimeout(timeout);
+      delete window[cbName];
+      reject(new Error('script load error'));
+    };
+    document.head.appendChild(script);
+  });
 }
 
 async function fetchPrograms() {
